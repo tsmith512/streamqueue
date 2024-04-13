@@ -72,12 +72,12 @@ compatibility_date = "2024-04-05"
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
 [[queues.producers]]
 binding = "VIDQUEUE"
-queue = "my-queue"
+queue = "vidqueue"
 
 # Bind a Queue consumer. Queue Consumers can retrieve tasks scheduled by Producers to act on them.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
 [[queues.consumers]]
-queue = "my-queue"
+queue = "vidqueue"
 # Optional: Configure batching and retries: https://developers.cloudflare.com/queues/learning/batching-retries/
 # max_batch_size = 10
 # max_batch_timeout = 30
