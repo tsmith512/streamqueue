@@ -13,7 +13,7 @@
 
 export interface Env {
   // Example binding to a Queue. Learn more at https://developers.cloudflare.com/queues/javascript-apis/
-  MY_QUEUE: Queue;
+  VIDQUEUE: Queue;
 }
 
 export default {
@@ -23,7 +23,7 @@ export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // To send a message on a queue, we need to create the queue first
     // https://developers.cloudflare.com/queues/get-started/#3-create-a-queue
-    await env.MY_QUEUE.send({
+    await env.VIDQUEUE.send({
       url: req.url,
       method: req.method,
       headers: Object.fromEntries(req.headers),
