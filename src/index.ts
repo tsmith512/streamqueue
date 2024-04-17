@@ -15,6 +15,26 @@ export interface Env {
   VIDQUEUE: Queue;
 }
 
+type uploadOps = "uploadFetch";
+type followupOps = "enableMP4Download" | "enableAutoCaptionsEN";
+
+interface StreamQueueMessage {
+  action: uploadOps | followupOps;
+  notes: string[]; // For testing and debugging notes
+}
+
+interface UploadRequestMessage extends StreamQueueMessage {
+  action: uploadOps;
+  name: string;
+  creator: string;
+  source: string;
+}
+
+interface SecondaryOpRequestMessage extends StreamQueueMessage {
+  action: followupOps;
+  uid: string;
+}
+
 export default {
   /**
    * FETCH HANDLER

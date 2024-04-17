@@ -79,11 +79,10 @@ queue = "vidqueue"
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
 [[queues.consumers]]
 queue = "vidqueue"
-# Optional: Configure batching and retries: https://developers.cloudflare.com/queues/learning/batching-retries/
-# max_batch_size = 10
-# max_batch_timeout = 30
-# max_retries = 10
-# dead_letter_queue = "my-queue-dlq"
+dead_letter_queue = "vidqueue-dlq"
+max_batch_size = 5
+max_batch_timeout = 30
+max_retries = 10
 
 # Bind an R2 Bucket. Use R2 to store arbitrarily large blobs of data, such as files.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#r2-buckets
