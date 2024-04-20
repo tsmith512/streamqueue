@@ -11,6 +11,7 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { AutoRouter } from 'itty-router' // ~1kB
 export interface Env {
   VIDQUEUE: Queue;
 }
@@ -56,12 +57,14 @@ export default {
    * @returns (Response)
    */
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    await env.VIDQUEUE.send({
-      url: req.url,
-      method: req.method,
-      headers: Object.fromEntries(req.headers),
-    });
-    return new Response('Sent message to the queue');
+    const router = AutoRouter();
+    router
+      .get('/api', () => `Hello`)
+      .post('/api/fetch', requestStreamFetch)
+      .post('/inbound', processInboundWebhook) // @TODO: Move this
+    ;
+
+    return await router.fetch(req, env, ctx);
   },
 
   /**
@@ -80,11 +83,64 @@ export default {
    * @param env
    */
   async queue(batch: MessageBatch<Error>, env: Env): Promise<void> {
-    // A queue consumer can make requests to other endpoints on the Internet,
-    // write to R2 object storage, query a D1 Database, and much more.
     for (let message of batch.messages) {
-      // Process each message (we'll just log these)
       console.log(`message ${message.id} processed: ${JSON.stringify(message.body)}`);
+      message.ack();
     }
   },
+};
+
+/**
+ * Enqueue a request to trigger a fetch-from-URL
+ * @param req
+ * @param env
+ * @param ctx
+ * @returns
+ */
+const requestStreamFetch = async (req: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+  // @TODO: Expect a message we can enqueue directly.
+  const payload = await req.json() as UploadRequestMessage;
+
+  // @TODO: Some kind of validation or authoriation
+
+  // @TODO: Build a message we can enqueue, but for initial test, see above
+  // const message: UploadRequestMessage = {};
+  const message: UploadRequestMessage = {
+    action: 'uploadFetch',
+    name: payload.name || 'untitled',
+    creator: payload.creator || 'vidqueue',
+    source: payload.source,
+    notes: [...payload?.notes, `Fetch request received and enqueued at ${new Date()}`],
+  };
+
+  await env.VIDQUEUE.send(message);
+
+  return new Response(JSON.stringify({
+    status: 'Enqueued',
+    message
+  }));
+};
+
+const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+  // @TODO: Do we type annotate Stream inbound webhooks or just yolo it?
+  const payload: any = await req.json();
+
+  console.log(req);
+  console.log(payload);
+
+  if (payload?.status?.state !== 'ready') {
+    // @TODO: Report video encoding failure.
+
+    // Webhook sender doesn't care, close out with an acknowledgement and be done.
+    return new Response(null, { status: 204 });
+  }
+
+  const message: SecondaryOpRequestMessage = {
+    action: 'enableMP4Download',
+    uid: payload.uid,
+    notes: [`Generated from inbound webhook and enqueued at ${new Date()}`],
+  };
+
+  await env.VIDQUEUE.send(message);
+  return new Response(null, { status: 201 });
 };

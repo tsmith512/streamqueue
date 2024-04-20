@@ -77,12 +77,12 @@ queue = "vidqueue"
 
 # Bind a Queue consumer. Queue Consumers can retrieve tasks scheduled by Producers to act on them.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
-[[queues.consumers]]
-queue = "vidqueue"
-dead_letter_queue = "vidqueue-dlq"
-max_batch_size = 5
-max_batch_timeout = 30
-max_retries = 10
+# [[queues.consumers]]
+# queue = "vidqueue"
+# dead_letter_queue = "vidqueue-dlq"
+# max_batch_size = 5
+# max_batch_timeout = 30
+# max_retries = 10
 
 # Bind an R2 Bucket. Use R2 to store arbitrarily large blobs of data, such as files.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#r2-buckets
