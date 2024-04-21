@@ -44,15 +44,10 @@ export default {
    * FETCH HANDLER
    *
    * Need to:
-   * - Accept messages directly somehow
-   * - Accept messages from Stream VOD webhooks
-   *   - And validate them...
-   * - Add messages to the VIDQUEUE queue with an action and necessary data:
-   *   - Video name
-   *   - Creator ID
-   *   - Next actions (mp4download, ???)
-   * - Accept and enqueue requests to fetch from URL
-   * - Accept and enqueue requests to enable MP4 downloads for a video
+   * - Authenticate direct messages
+   * - Validate Stream webhooks
+   * - Enable support for auto caption jobs
+   * - Some kind of way to determine what videos get what jobs?
    *
    * @param req (Request) inbound request object
    * @param env (Environemnt) contains env vars and Workers bindings
@@ -75,11 +70,7 @@ export default {
    *
    * Need to:
    * - Figure out how to make this a PULL handler
-   * - Accept a batch of messages
-   * - Process requests (uploadfetch, mp4download, ???)
    * - If Stream sends a 429, bail out and retry the entire batch later
-   * - (Debugging) Report inbound messages
-   * - (Debugging) Report successes
    * - Report failures
    *
    * @param batch
