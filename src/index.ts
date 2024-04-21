@@ -117,8 +117,18 @@ export default {
           success = res.ok
           break;
         case 'enableMP4Download':
-          console.log('Enabling auto captions is not yet supported.');
-          success = true;
+          console.log(`Received MP4 Download generation request for ${payload.uid}.`);
+
+          const dlRes = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/${payload.uid}/downloads`, {
+            headers: {
+              'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
+            },
+            method: 'POST',
+          });
+
+          console.log(`Stream responded ${dlRes.status} ${dlRes.statusText}: \n${JSON.stringify(await dlRes.json())}`);
+
+          success = dlRes.ok;
           break;
         case 'enableAutoCaptionsEN':
           console.log('Enabling auto captions is not yet supported.');
