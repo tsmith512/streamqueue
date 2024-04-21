@@ -14,6 +14,9 @@
 import { AutoRouter } from 'itty-router' // ~1kB
 export interface Env {
   VIDQUEUE: Queue;
+  CF_STREAM_KEY: string;
+  CF_ACCT_TAG: string;
+  CF_API: string;
 }
 
 type uploadOps = "uploadFetch";
@@ -82,10 +85,53 @@ export default {
    * @param batch
    * @param env
    */
-  async queue(batch: MessageBatch<Error>, env: Env): Promise<void> {
+  async queue(batch: MessageBatch, env: Env): Promise<void> {
     for (let message of batch.messages) {
-      console.log(`message ${message.id} processed: ${JSON.stringify(message.body)}`);
-      message.ack();
+      const payload = message.body as UploadRequestMessage | SecondaryOpRequestMessage;
+      console.log(`Reviewing message ${message.id}: ${JSON.stringify(payload)}`);
+
+      // Let's decide to ack or retry later...
+      let success = false;
+
+      switch (payload.action) {
+        case 'uploadFetch':
+          console.log(`Received upload fetch request for ${payload.source}.`);
+
+          const res = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/copy`, {
+            headers: {
+              'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
+            },
+            method: 'POST',
+            body: JSON.stringify({
+              creator: payload.creator,
+              meta: {
+                name: payload.name,
+              },
+              url: payload.source,
+            }),
+          });
+
+          console.log(`Stream responded ${res.status} ${res.statusText}: \n${JSON.stringify(await res.json())}`);
+
+          // @TODO: There are lots of reasons this may fail...
+          success = res.ok
+          break;
+        case 'enableMP4Download':
+          console.log('Enabling auto captions is not yet supported.');
+          success = true;
+          break;
+        case 'enableAutoCaptionsEN':
+          console.log('Enabling auto captions is not yet supported.');
+          success = true;
+          break;
+      }
+
+      if (success) {
+        message.ack();
+      } else {
+        // Delay for 1 minutes and try again...
+        message.retry({ delaySeconds: 60 });
+      }
     }
   },
 };
@@ -110,7 +156,7 @@ const requestStreamFetch = async (req: Request, env: Env, ctx: ExecutionContext)
     name: payload.name || 'untitled',
     creator: payload.creator || 'vidqueue',
     source: payload.source,
-    notes: [...payload?.notes, `Fetch request received and enqueued at ${new Date()}`],
+    notes: [`Fetch request received and enqueued at ${new Date()}`],
   };
 
   await env.VIDQUEUE.send(message);
@@ -118,7 +164,9 @@ const requestStreamFetch = async (req: Request, env: Env, ctx: ExecutionContext)
   return new Response(JSON.stringify({
     status: 'Enqueued',
     message
-  }));
+  }), {
+    status: 201
+  });
 };
 
 const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
@@ -128,6 +176,7 @@ const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionConte
   console.log(req);
   console.log(payload);
 
+  // Stream sends a webbook when a video is ready for playback or errored.
   if (payload?.status?.state !== 'ready') {
     // @TODO: Report video encoding failure.
 
@@ -135,6 +184,7 @@ const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionConte
     return new Response(null, { status: 204 });
   }
 
+  // @TODO: For now, assume we want to make an MP4 Download for everything we get
   const message: SecondaryOpRequestMessage = {
     action: 'enableMP4Download',
     uid: payload.uid,
@@ -142,5 +192,7 @@ const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionConte
   };
 
   await env.VIDQUEUE.send(message);
-  return new Response(null, { status: 201 });
+
+  // Webhook sender doesn't care, close out with an acknowledgement and be done.
+  return new Response(null, { status: 204 });
 };

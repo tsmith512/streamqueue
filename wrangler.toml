@@ -7,8 +7,11 @@ logpush = true
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Note: Use secrets to store sensitive data.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-# [vars]
-# MY_VARIABLE = "production_value"
+[vars]
+CF_API = "https://api.cloudflare.com/client/v4/accounts/"
+# SECRETS:
+# CF_STREAM_KEY
+# CF_ACCT_TAG
 
 # Bind the Workers AI model catalog. Run machine learning models, powered by serverless GPUs, on Cloudflare’s global network
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#workers-ai
@@ -77,12 +80,12 @@ queue = "vidqueue"
 
 # Bind a Queue consumer. Queue Consumers can retrieve tasks scheduled by Producers to act on them.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
-# [[queues.consumers]]
-# queue = "vidqueue"
-# dead_letter_queue = "vidqueue-dlq"
-# max_batch_size = 5
-# max_batch_timeout = 30
-# max_retries = 10
+[[queues.consumers]]
+queue = "vidqueue"
+dead_letter_queue = "vidqueue-dlq"
+max_batch_size = 5
+max_batch_timeout = 30
+max_retries = 10
 
 # Bind an R2 Bucket. Use R2 to store arbitrarily large blobs of data, such as files.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#r2-buckets
