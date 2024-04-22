@@ -1,14 +1,6 @@
 /**
- * Welcome to Cloudflare Workers!
- *
- * This is a template for a Queue consumer: a Worker that can consume from a
- * Queue: https://developers.cloudflare.com/queues/get-started/
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
+ * VIDQUEUE is a sample Worker that leverages Cloudflare Workers Queues to
+ * to churn through large backlogs for Cloudflare Stream.
  */
 
 import { AutoRouter } from 'itty-router';
@@ -54,7 +46,6 @@ export default {
    * Need to:
    * - Authenticate direct messages
    * - Validate Stream webhooks
-   * - Enable support for auto caption jobs
    * - Some kind of way to determine what videos get what jobs?
    *
    * @param req (Request) inbound request object
@@ -80,6 +71,7 @@ export default {
    * - Figure out how to make this a PULL handler
    * - If Stream sends a 429, bail out and retry the entire batch later
    * - Report failures
+   * - Add support for subtitles
    *
    * @param batch
    * @param env
