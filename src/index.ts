@@ -11,12 +11,20 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import { AutoRouter } from 'itty-router' // ~1kB
+import { AutoRouter } from 'itty-router';
+import { processInboundWebhook, requestStreamFetch } from './inbound';
+import { processMessage } from './queueing';
+
 export interface Env {
+  // This binding is set in wrangler.toml
   VIDQUEUE: Queue;
+
+  // This is an ENV var in wrangler.toml
+  CF_API: string;
+
+  // Put these as secrets
   CF_STREAM_KEY: string;
   CF_ACCT_TAG: string;
-  CF_API: string;
 }
 
 type uploadOps = "uploadFetch";
@@ -27,14 +35,14 @@ interface StreamQueueMessage {
   notes: string[]; // For testing and debugging notes
 }
 
-interface UploadRequestMessage extends StreamQueueMessage {
+export interface UploadRequestMessage extends StreamQueueMessage {
   action: uploadOps;
   name: string;
   creator: string;
   source: string;
 }
 
-interface SecondaryOpRequestMessage extends StreamQueueMessage {
+export interface SecondaryOpRequestMessage extends StreamQueueMessage {
   action: followupOps;
   uid: string;
 }
@@ -78,122 +86,7 @@ export default {
    */
   async queue(batch: MessageBatch, env: Env): Promise<void> {
     for (let message of batch.messages) {
-      const payload = message.body as UploadRequestMessage | SecondaryOpRequestMessage;
-      console.log(`Reviewing message ${message.id}: ${JSON.stringify(payload)}`);
-
-      // Let's decide to ack or retry later...
-      let success = false;
-
-      switch (payload.action) {
-        case 'uploadFetch':
-          console.log(`Received upload fetch request for ${payload.source}.`);
-
-          const res = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/copy`, {
-            headers: {
-              'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
-            },
-            method: 'POST',
-            body: JSON.stringify({
-              creator: payload.creator,
-              meta: {
-                name: payload.name,
-              },
-              url: payload.source,
-            }),
-          });
-
-          console.log(`Stream responded ${res.status} ${res.statusText}: \n${JSON.stringify(await res.json())}`);
-
-          // @TODO: There are lots of reasons this may fail...
-          success = res.ok
-          break;
-        case 'enableMP4Download':
-          console.log(`Received MP4 Download generation request for ${payload.uid}.`);
-
-          const dlRes = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/${payload.uid}/downloads`, {
-            headers: {
-              'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
-            },
-            method: 'POST',
-          });
-
-          console.log(`Stream responded ${dlRes.status} ${dlRes.statusText}: \n${JSON.stringify(await dlRes.json())}`);
-
-          success = dlRes.ok;
-          break;
-        case 'enableAutoCaptionsEN':
-          console.log('Enabling auto captions is not yet supported.');
-          success = true;
-          break;
-      }
-
-      if (success) {
-        message.ack();
-      } else {
-        // Delay for 1 minutes and try again...
-        message.retry({ delaySeconds: 60 });
-      }
+      processMessage(message, env);
     }
   },
-};
-
-/**
- * Enqueue a request to trigger a fetch-from-URL
- * @param req
- * @param env
- * @param ctx
- * @returns
- */
-const requestStreamFetch = async (req: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
-  // @TODO: Expect a message we can enqueue directly.
-  const payload = await req.json() as UploadRequestMessage;
-
-  // @TODO: Some kind of validation or authoriation
-
-  // @TODO: Build a message we can enqueue, but for initial test, see above
-  // const message: UploadRequestMessage = {};
-  const message: UploadRequestMessage = {
-    action: 'uploadFetch',
-    name: payload.name || 'untitled',
-    creator: payload.creator || 'vidqueue',
-    source: payload.source,
-    notes: [`Fetch request received and enqueued at ${new Date()}`],
-  };
-
-  await env.VIDQUEUE.send(message);
-
-  return new Response(JSON.stringify({
-    status: 'Enqueued',
-    message
-  }), {
-    status: 201
-  });
-};
-
-const processInboundWebhook = async (req: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
-  // @TODO: Do we type annotate Stream inbound webhooks or just yolo it?
-  const payload: any = await req.json();
-
-  console.log(req);
-  console.log(payload);
-
-  // Stream sends a webbook when a video is ready for playback or errored.
-  if (payload?.status?.state !== 'ready') {
-    // @TODO: Report video encoding failure.
-
-    // Webhook sender doesn't care, close out with an acknowledgement and be done.
-    return new Response(null, { status: 204 });
-  }
-
-  // @TODO: For now, assume we want to make an MP4 Download for everything we get
-  const message: SecondaryOpRequestMessage = {
-    action: 'enableMP4Download',
-    uid: payload.uid,
-    notes: [`Generated from inbound webhook and enqueued at ${new Date()}`],
-  };
-
-  await env.VIDQUEUE.send(message);
-
-  // Webhook sender doesn't care, close out with an acknowledgement and be done.
-  return new Response(null, { status: 204 });
 };
