@@ -86,7 +86,7 @@ export default {
    */
   async queue(batch: MessageBatch, env: Env): Promise<void> {
     for (let message of batch.messages) {
-      processMessage(message, env);
+      await processMessage(message, env);
     }
   },
 };
