@@ -54,11 +54,17 @@ export const processMessage = async (message: Message, env: Env): Promise<void> 
       console.log('Enabling auto captions is not yet supported.');
       success = true;
       break;
+    default:
+      console.log(`Unknown action requested: ${payload}`);
+      success = true;
+      break;
   }
 
   if (success) {
+    console.log('Success, acknowledging message');
     message.ack();
   } else {
+    console.log('Failed; will retry in 1 minute');
     // Delay for 1 minutes and try again...
     message.retry({ delaySeconds: 60 });
   }
