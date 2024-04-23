@@ -12,38 +12,57 @@ export const processMessage = async (message: Message, env: Env): Promise<void> 
   console.log(`Reviewing message ${message.id}: ${JSON.stringify(payload)}`);
 
   // Let's decide to ack or retry later...
-  let success = false;
+  let code = -1;
 
   switch (payload.action) {
     case 'uploadFetch':
       console.log(`Received upload fetch request for ${payload.source}.`);
-
-      const response = await uploadFetch(payload, env);
-      // @TODO: There are lots of reasons this may fail...
-      success = response >= 200 && response < 300;
+      code = await uploadFetch(payload, env);
       break;
     case 'enableMP4Download':
       console.log(`Received MP4 Download generation request for ${payload.uid}.`);
-      const dlRes = await enableMP4Download(payload, env);
-      success = dlRes >= 200 && dlRes < 300;
+      code = await enableMP4Download(payload, env);
       break;
     case 'enableAutoCaptionsEN':
       console.log(`Received auto-generated captions request for ${payload.uid}.`);
-      const capReq = await enableAutoCaptions(payload, env);
-      success = capReq >= 200 && capReq < 300;
+      code = await enableAutoCaptions(payload, env);
       break;
     default:
       console.log(`Unknown action requested: ${payload}`);
-      success = true;
+      code = 400;
       break;
   }
 
-  if (success) {
-    console.log('Success, acknowledging message');
-    message.ack();
-  } else {
-    console.log('Failed; will retry in 1 minute');
-    // Delay for 1 minutes and try again...
+  if (retry(code)) {
     message.retry({ delaySeconds: 60 });
+  } else {
+    message.ack();
   }
+}
+
+/**
+ * Lots of reasons things may succeed for fail. Based on a code, decide to retry
+ * a message or not.
+ *
+ * @param code (number) Response Code from Stream API
+ * @returns (boolean) Should we retry this request later?
+ */
+const retry = (code: number): boolean => {
+  if (code >= 200 && code < 300) {
+    console.log(`Done.`);
+    return false;
+  }
+
+  if (code === 429) {
+    console.log(`Rate limited. Will retry.`);
+    return true;
+  }
+
+  if (code === 400) {
+    console.log(`Bad request. Will not retry.`);
+    return false;
+  }
+
+  console.log(`Unanticipated code ${code}, will retry.`);
+  return true;
 }
