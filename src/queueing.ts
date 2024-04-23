@@ -5,6 +5,7 @@
  */
 
 import { Env, SecondaryOpRequestMessage, UploadRequestMessage } from ".";
+import { enableAutoCaptions, enableMP4Download, uploadFetch } from "./outbound";
 
 export const processMessage = async (message: Message, env: Env): Promise<void> => {
   const payload = message.body as UploadRequestMessage | SecondaryOpRequestMessage;
@@ -17,42 +18,19 @@ export const processMessage = async (message: Message, env: Env): Promise<void> 
     case 'uploadFetch':
       console.log(`Received upload fetch request for ${payload.source}.`);
 
-      const res = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/copy`, {
-        headers: {
-          'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
-        },
-        method: 'POST',
-        body: JSON.stringify({
-          creator: payload.creator,
-          meta: {
-            name: payload.name,
-          },
-          url: payload.source,
-        }),
-      });
-
-      console.log(`Stream responded ${res.status} ${res.statusText}: \n${JSON.stringify(await res.json())}`);
-
+      const response = await uploadFetch(payload, env);
       // @TODO: There are lots of reasons this may fail...
-      success = res.ok
+      success = response >= 200 && response < 300;
       break;
     case 'enableMP4Download':
       console.log(`Received MP4 Download generation request for ${payload.uid}.`);
-
-      const dlRes = await fetch(`${env.CF_API}/${env.CF_ACCT_TAG}/stream/${payload.uid}/downloads`, {
-        headers: {
-          'Authorization': `Bearer ${env.CF_STREAM_KEY}`,
-        },
-        method: 'POST',
-      });
-
-      console.log(`Stream responded ${dlRes.status} ${dlRes.statusText}: \n${JSON.stringify(await dlRes.json())}`);
-
-      success = dlRes.ok;
+      const dlRes = await enableMP4Download(payload, env);
+      success = dlRes >= 200 && dlRes < 300;
       break;
     case 'enableAutoCaptionsEN':
-      console.log('Enabling auto captions is not yet supported.');
-      success = true;
+      console.log(`Received auto-generated captions request for ${payload.uid}.`);
+      const capReq = await enableAutoCaptions(payload, env);
+      success = capReq >= 200 && capReq < 300;
       break;
     default:
       console.log(`Unknown action requested: ${payload}`);
