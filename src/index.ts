@@ -70,15 +70,20 @@ export default {
    * Need to:
    * - Figure out how to make this a PULL handler
    * - If Stream sends a 429, bail out and retry the entire batch later
-   * - Report failures
-   * - Add support for subtitles
    *
    * @param batch
    * @param env
    */
   async queue(batch: MessageBatch, env: Env): Promise<void> {
     for (let message of batch.messages) {
-      await processMessage(message, env);
+      const code = await processMessage(message, env);
+      if (code === 429) {
+        // We got rate limited.
+        // Any message already acknowledged will be marked as successful, so
+        // mark the rest of the batch to try again in 5 minutes.
+        batch.retryAll({ delaySeconds: 60 * 5 });
+        break;
+      }
     }
   },
 };

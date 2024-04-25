@@ -7,7 +7,7 @@
 import { Env, SecondaryOpRequestMessage, UploadRequestMessage } from ".";
 import { enableAutoCaptions, enableMP4Download, uploadFetch } from "./outbound";
 
-export const processMessage = async (message: Message, env: Env): Promise<void> => {
+export const processMessage = async (message: Message, env: Env): Promise<number> => {
   const payload = message.body as UploadRequestMessage | SecondaryOpRequestMessage;
   console.log(`Reviewing message ${message.id}: ${JSON.stringify(payload)}`);
 
@@ -38,6 +38,8 @@ export const processMessage = async (message: Message, env: Env): Promise<void> 
   } else {
     message.ack();
   }
+
+  return code;
 }
 
 /**
