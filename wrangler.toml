@@ -6,14 +6,18 @@ compatibility_date = "2024-04-05"
 logpush = true
 tail_consumers = [{service = "vidqueue-tail"}]
 
+[triggers]
+crons = ["*/5 * * * *"]
+
 # Variable bindings. These are arbitrary, plaintext strings (similar to environment variables)
 # Note: Use secrets to store sensitive data.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 [vars]
-CF_API = "https://api.cloudflare.com/client/v4/accounts/"
+CF_API = "https://api.cloudflare.com/client/v4/accounts"
 # SECRETS:
 # CF_STREAM_KEY
 # CF_ACCT_TAG
+# CF_QUEUE_ID
 
 # Bind a Durable Object. Durable objects are a scale-to-zero compute primitive based on the actor model.
 # Durable Objects can live for as long as needed. Use these when you need a long-running "server", such as in realtime apps.
@@ -44,6 +48,7 @@ queue = "vidqueue"
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#queues
 [[queues.consumers]]
 queue = "vidqueue"
+type = "http_pull"
 dead_letter_queue = "vidqueue-dlq"
 max_batch_size = 5
 max_batch_timeout = 30
