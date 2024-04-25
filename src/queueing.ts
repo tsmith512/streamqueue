@@ -53,16 +53,21 @@ const retry = (code: number): boolean => {
     return false;
   }
 
-  if (code === 429) {
-    console.log(`Rate limited. Will retry.`);
-    return true;
+  switch (code) {
+    case 429:
+      console.log(`Rate limited. Will retry.`);
+      return true;
+      break;
+    case 409:
+      console.log(`Conflict. Most likely a duplicate request. Will not retry.`);
+      return false;
+      break;
+    case 400:
+      console.log(`Bad request. Will not retry.`);
+      return false;
+      break;
+    default:
+      console.log(`Unanticipated code ${code}, will retry.`);
+      return true;
   }
-
-  if (code === 400) {
-    console.log(`Bad request. Will not retry.`);
-    return false;
-  }
-
-  console.log(`Unanticipated code ${code}, will retry.`);
-  return true;
 }
